@@ -1,0 +1,6 @@
+{
+  "name": "RainShield - Rainfall & Inundation Intelligence Platform",
+  "description": "AI-powered rainfall, inundation and infrastructure intelligence for faster disaster-response decisions.",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
