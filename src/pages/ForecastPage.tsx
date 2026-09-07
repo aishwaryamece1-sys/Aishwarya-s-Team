@@ -26,7 +26,7 @@ import {
 import { useRainShield } from '../context/RainShieldContext';
 import { GISMap } from '../components/GISMap';
 import { ForecastTimeline } from '../components/ForecastTimeline';
-import { HYETOGRAPH_CHART_DATA } from '../data/demoData';
+import { useLiveClock, getDynamicHyetographData } from '../utils/timeUtils';
 
 export const ForecastPage: React.FC = () => {
   const {
@@ -38,7 +38,12 @@ export const ForecastPage: React.FC = () => {
     isAnalyzing,
   } = useRainShield();
 
+  const { now, fullDateFormatted, timeFormatted, stepApproximates } = useLiveClock(1000);
+
   const [selectedModel, setSelectedModel] = useState<'cnn-lstm' | 'wrf-ensemble'>('cnn-lstm');
+
+  const peakStep = stepApproximates.find(s => s.step === '+120') || stepApproximates[4];
+  const dynamicHyetographData = getDynamicHyetographData(now);
 
   return (
     <div className="flex-1 p-4 lg:p-6 space-y-6 max-w-[1700px] mx-auto w-full select-none text-slate-800">
@@ -52,6 +57,10 @@ export const ForecastPage: React.FC = () => {
             </h1>
             <span className="text-[11px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200 px-2.5 py-0.5 rounded-full">
               {selectedLocation.name}
+            </span>
+            <span className="text-[11px] font-mono font-bold bg-slate-900 text-emerald-400 border border-slate-700 px-2.5 py-0.5 rounded-full flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+              {timeFormatted} (Live)
             </span>
           </div>
           <p className="text-xs text-slate-500 mt-1 max-w-3xl">
@@ -102,7 +111,9 @@ export const ForecastPage: React.FC = () => {
         <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-sm">
           <div className="text-slate-400 text-[11px] font-medium">Storm Peak Rate</div>
           <div className="text-xl font-bold text-amber-600 mt-0.5 font-mono">112.5 mm/h</div>
-          <div className="text-[11px] text-slate-500 mt-1">Expected at 16:30 IST</div>
+          <div className="text-[11px] text-slate-500 mt-1">
+            Expected ~{peakStep.timeStr} ({peakStep.approxRelativeLabel})
+          </div>
         </div>
 
         <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-sm">
@@ -156,14 +167,14 @@ export const ForecastPage: React.FC = () => {
                 <span>Hyetograph Time-Series & Warning Thresholds</span>
               </div>
               <span className="text-[11px] font-semibold text-amber-800 bg-amber-50 px-2.5 py-0.5 rounded-full border border-amber-200">
-                Peak: +120 MIN (16:30 IST)
+                Peak: +120 MIN (~{peakStep.timeStr}, {peakStep.approxRelativeLabel})
               </span>
             </div>
 
             {/* Recharts Hyetograph */}
             <div className="h-72 w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={HYETOGRAPH_CHART_DATA} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <ComposedChart data={dynamicHyetographData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                   <XAxis dataKey="time" stroke="#64748b" tick={{ fontSize: 10, fill: '#64748b' }} />
                   <YAxis stroke="#64748b" tick={{ fontSize: 10, fill: '#64748b' }} label={{ value: 'Rainfall (mm/hr)', angle: -90, position: 'insideLeft', fill: '#64748b', fontSize: 10 }} />

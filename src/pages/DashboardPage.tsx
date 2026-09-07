@@ -26,8 +26,11 @@ import {
   MapPin,
   Car,
   AlertOctagon,
+  RefreshCw,
+  RotateCcw,
 } from 'lucide-react';
 import { useRainShield } from '../context/RainShieldContext';
+import { useLiveClock } from '../utils/timeUtils';
 import { GISMap } from '../components/GISMap';
 import { ForecastTimeline } from '../components/ForecastTimeline';
 import { RealWeatherCharts } from '../components/RealWeatherCharts';
@@ -58,13 +61,35 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
     historicalClimate,
     riskAssessment,
     isWeatherLoading,
+    lastWeatherRefreshTime,
     generateAndDownloadReport,
+    autoRefreshEnabled,
+    toggleAutoRefresh,
+    secondsUntilNextRefresh,
+    lastAutoDetectionEvent,
+    triggerLiveSimulationEvent,
+    resetLiveRealData,
   } = useRainShield();
+
+  const {
+    now,
+    fullDateFormatted,
+    timeFormatted,
+    utcFormatted,
+    timezone,
+    stepApproximates,
+    formatRelative,
+  } = useLiveClock(1000);
 
   const [isAlertModalOpen, setIsAlertModalOpen] = useState(false);
   const [isSafeRouteModalOpen, setIsSafeRouteModalOpen] = useState(false);
 
   const activeAlerts = alerts.filter((a) => a.status === 'ACTIVE');
+
+  // Real-time time approximations
+  const syncAgo = formatRelative(lastWeatherRefreshTime || now);
+  const currentStepApprox = stepApproximates.find((s) => s.step === currentTimeStep) || stepApproximates[0];
+  const peakApprox = stepApproximates.find((s) => s.step === '+120') || stepApproximates[4];
 
   // Real or synthesized metrics
   const currentRainRate = realWeatherData?.current?.precipitationMm ?? currentRainfall.intensityMmHr;
@@ -130,7 +155,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
             </span>
             <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1.5">
               <Activity className="w-3 h-3 text-emerald-600" />
-              Live Telemetry Active
+              Live Telemetry Stream Active (2016-2026 Calibrated)
             </span>
           </div>
           <p className="text-xs text-slate-500 mt-1">
@@ -173,6 +198,94 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
             <ShieldAlert className="w-3.5 h-3.5 text-rose-600" />
             <span>Issue Alert</span>
           </button>
+        </div>
+      </div>
+
+      {/* REAL-TIME LIVE DATA & TEMPORAL CONTEXT BAR */}
+      <div className="bg-slate-900 text-white border border-slate-800 rounded-xl p-3.5 shadow-sm flex flex-col xl:flex-row xl:items-center justify-between gap-3">
+        {/* Left: Real-time Date & Clock & Auto-Sync ticker */}
+        <div className="flex flex-wrap items-center gap-2.5 text-xs">
+          <div className="flex items-center gap-2 bg-slate-800/90 border border-slate-700/80 px-3 py-1.5 rounded-lg">
+            <span className="relative flex h-2.5 w-2.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
+            </span>
+            <span className="font-semibold text-emerald-400 uppercase tracking-wider text-[11px]">Real-Time Live</span>
+            <span className="text-slate-600">|</span>
+            <span className="font-medium text-slate-200">{fullDateFormatted}</span>
+            <span className="font-mono font-bold text-white text-sm tracking-tight">{timeFormatted}</span>
+            <span className="text-[10px] font-mono text-emerald-400 bg-emerald-950 px-1.5 py-0.5 rounded border border-emerald-800">
+              {timezone}
+            </span>
+            <span className="text-[11px] font-mono text-slate-400 hidden lg:inline">
+              ({utcFormatted})
+            </span>
+          </div>
+
+          {/* Continuous Auto-Refresh Countdown and Toggle */}
+          <div className="flex items-center gap-2 bg-slate-800/80 border border-slate-700/70 px-2.5 py-1 rounded-lg">
+            <RefreshCw className={`w-3.5 h-3.5 text-emerald-400 ${isWeatherLoading ? 'animate-spin' : ''}`} />
+            <div className="flex items-center gap-1.5 text-[11px]">
+              <span className="text-slate-400">Auto-Sync:</span>
+              <span className="font-mono font-bold text-emerald-300">
+                {autoRefreshEnabled ? `${secondsUntilNextRefresh}s` : 'PAUSED'}
+              </span>
+            </div>
+            <button
+              onClick={toggleAutoRefresh}
+              className={`text-[10px] font-bold px-2 py-0.5 rounded transition-all ${
+                autoRefreshEnabled
+                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30'
+                  : 'bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30'
+              }`}
+              title="Toggle continuous real-time telemetry auto-ingestion"
+            >
+              {autoRefreshEnabled ? 'ON' : 'OFF'}
+            </button>
+          </div>
+
+          {/* Simulation & Real Reset triggers for instant testing */}
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => triggerLiveSimulationEvent('cloudburst')}
+              className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-rose-950/80 hover:bg-rose-900 border border-rose-700/60 text-rose-200 text-[11px] font-semibold transition-all shadow-xs"
+              title="Inject an extreme cloudburst scenario into the live ingestion loop to test instant flood auto-escalation"
+            >
+              <Zap className="w-3 h-3 text-rose-400" />
+              <span>Simulate Cloudburst Influx</span>
+            </button>
+
+            <button
+              onClick={resetLiveRealData}
+              className="flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 text-[11px] transition-all"
+              title="Restore real Open-Meteo & Copernicus observations"
+            >
+              <RotateCcw className="w-2.5 h-2.5 text-slate-400" />
+              <span>Live Sensor Sync</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Right: Time Approximates on Forecast Horizons */}
+        <div className="flex flex-wrap items-center gap-2 text-xs">
+          <div className="flex items-center gap-1.5 bg-slate-800/90 border border-slate-700/80 px-2.5 py-1.5 rounded-lg text-[11px]">
+            <Clock className="w-3.5 h-3.5 text-amber-400" />
+            <span className="text-slate-400">Simulation Horizon:</span>
+            <span className="font-mono font-bold text-amber-300">
+              {currentStepApprox.offsetLabel} (~{currentStepApprox.timeStr})
+            </span>
+            <span className="text-[10px] bg-amber-950 text-amber-400 border border-amber-800/80 px-1.5 py-0.2 rounded font-semibold">
+              {currentStepApprox.approxRelativeLabel}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-1.5 bg-slate-800/90 border border-slate-700/80 px-2.5 py-1.5 rounded-lg text-[11px] hidden sm:flex">
+            <CloudRain className="w-3.5 h-3.5 text-rose-400" />
+            <span className="text-slate-400">Projected Peak:</span>
+            <span className="font-mono font-bold text-rose-300">
+              ~{peakApprox.timeStr} ({peakApprox.approxRelativeLabel})
+            </span>
+          </div>
         </div>
       </div>
 

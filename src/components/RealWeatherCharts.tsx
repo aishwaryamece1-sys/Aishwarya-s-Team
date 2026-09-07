@@ -22,9 +22,11 @@ import {
   Compass,
 } from 'lucide-react';
 import { useRainShield } from '../context/RainShieldContext';
+import { useLiveClock, formatTimeApproximate } from '../utils/timeUtils';
 
 export const RealWeatherCharts: React.FC = () => {
-  const { realWeatherData, historicalClimate, isWeatherLoading, weatherError, refreshRealWeather } = useRainShield();
+  const { realWeatherData, historicalClimate, isWeatherLoading, weatherError, refreshRealWeather, lastWeatherRefreshTime } = useRainShield();
+  const { now, timeFormatted, formatRelative } = useLiveClock(1000);
   const [activeTab, setActiveTab] = useState<'hourly' | 'historical' | 'temperature' | 'daily'>('hourly');
 
   if (isWeatherLoading && !realWeatherData) {
@@ -58,15 +60,20 @@ export const RealWeatherCharts: React.FC = () => {
   if (!realWeatherData || !historicalClimate) return null;
 
   // Prepare Hourly Data (take 36 hours for clean visualization)
-  const hourlyData = realWeatherData.hourly.slice(0, 36).map((pt) => ({
-    time: pt.displayTime,
-    fullTime: pt.time,
-    rainMm: pt.precipitationMm,
-    probabilityPct: pt.precipitationProbabilityPct,
-    tempC: pt.temperatureC,
-    pressureHpa: pt.surfacePressureHpa,
-    windKmh: pt.windSpeedKmh,
-  }));
+  const hourlyData = realWeatherData.hourly.slice(0, 36).map((pt) => {
+    const ptDate = new Date(pt.time);
+    const approx = formatTimeApproximate(ptDate, now);
+    return {
+      time: pt.displayTime,
+      fullTime: pt.time,
+      approx,
+      rainMm: pt.precipitationMm,
+      probabilityPct: pt.precipitationProbabilityPct,
+      tempC: pt.temperatureC,
+      pressureHpa: pt.surfacePressureHpa,
+      windKmh: pt.windSpeedKmh,
+    };
+  });
 
   // Prepare Historical Monthly Baseline vs Current
   const currentMonthName = new Date().toLocaleDateString('en-US', { month: 'short' });
@@ -88,10 +95,20 @@ export const RealWeatherCharts: React.FC = () => {
               Verified Hydro-Meteorological Observational Charts
             </h3>
           </div>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Real retrieved telemetry for <strong className="text-slate-800">{realWeatherData.location.name}</strong> • Source:{' '}
-            <span className="font-mono text-emerald-700">Open-Meteo & Copernicus ERA5</span>
-          </p>
+          <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 mt-1">
+            <span>
+              Retrieved for <strong className="text-slate-800">{realWeatherData.location.name}</strong> • Source:{' '}
+              <span className="font-mono text-emerald-700">Open-Meteo & Copernicus ERA5</span>
+            </span>
+            <span className="text-slate-300 hidden sm:inline">•</span>
+            <span className="flex items-center gap-1 font-mono text-[11px] font-semibold text-slate-800 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
+              Live Time: {timeFormatted}
+            </span>
+            <span className="text-[10px] font-semibold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+              Synced {formatRelative(lastWeatherRefreshTime || now)}
+            </span>
+          </div>
         </div>
 
         {/* Tab Navigation */}
@@ -320,7 +337,14 @@ export const RealWeatherCharts: React.FC = () => {
             >
               <div>
                 <div className="text-[11px] font-bold text-slate-800">{d.displayDate}</div>
-                <div className="text-[10px] text-slate-500 line-clamp-1 my-1">{d.weatherDescription}</div>
+                <div className={`text-[10px] font-semibold px-1.5 py-0.5 rounded inline-block my-0.5 ${
+                  idx === 0
+                    ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                    : 'bg-slate-200/70 text-slate-700'
+                }`}>
+                  {idx === 0 ? 'Today (Live)' : idx === 1 ? 'Tomorrow' : `In ~${idx} days`}
+                </div>
+                <div className="text-[10px] text-slate-500 line-clamp-1 my-0.5">{d.weatherDescription}</div>
               </div>
 
               <div className="my-2">

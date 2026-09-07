@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { useRainShield } from '../context/RainShieldContext';
 import { LocationService, GeocodingResult } from '../services/locationService';
+import { LiveClockWidget } from './LiveClockWidget';
 
 interface HeaderProps {
   currentRoute: string;
@@ -336,6 +337,14 @@ export const Header: React.FC<HeaderProps> = ({ currentRoute, onNavigate }) => {
 
         {/* Global Controls, Risk Badge, Telemetry & Report Actions */}
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          {/* Real-time Live Date & Clock Widget */}
+          <div className="hidden sm:block">
+            <LiveClockWidget />
+          </div>
+          <div className="sm:hidden">
+            <LiveClockWidget compact />
+          </div>
+
           {/* Active Coordinates & Risk Badge */}
           <div className="hidden lg:flex items-center gap-2 bg-slate-800/80 px-2.5 py-1.5 rounded-lg border border-slate-700 text-xs">
             <MapPin className="w-3.5 h-3.5 text-emerald-400 shrink-0" />

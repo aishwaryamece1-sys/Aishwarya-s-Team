@@ -126,12 +126,15 @@ export function generateInundationZonesForLocation(
  */
 export function generateInfrastructureAssetsForLocation(
   location: LocationInfo,
-  riskAssessment: ExplainableRiskAssessment | null
+  riskAssessment: ExplainableRiskAssessment | null,
+  realWeather?: RealWeatherData | null
 ): InfrastructureAsset[] {
   const lat = location.lat;
   const lng = location.lng;
   const name = location.name;
   const risk = (riskAssessment?.riskLevel || 'LOW') as RiskLevel;
+  const rainIntensity = realWeather?.current?.precipitationMm ?? 0;
+  const depthFactor = rainIntensity > 15 ? 1.8 : rainIntensity > 5 ? 1.3 : 1.0;
 
   return [
     {
@@ -141,13 +144,13 @@ export function generateInfrastructureAssetsForLocation(
       lat: lat + 0.009,
       lng: lng + 0.006,
       riskLevel: risk === 'EXTREME' ? 'HIGH' : 'LOW',
-      waterDepthMeters: 0.08,
+      waterDepthMeters: Number((0.08 * depthFactor).toFixed(2)),
       locationName: `${name} Medical Enclave`,
       accessStatus: 'Fully Accessible (Emergency Corridor Open)',
       status: 'OPERATIONAL',
       advisory: 'Emergency triage and power backup operational. Maintain elevated ambulance access.',
       distanceToInundationM: 650,
-      predictedDepthM: 0.05,
+      predictedDepthM: Number((0.05 * depthFactor).toFixed(2)),
       capacity: '450 Beds / Level 2 Trauma Center',
       address: `Medical College Road, ${name}`,
     },
@@ -158,13 +161,13 @@ export function generateInfrastructureAssetsForLocation(
       lat: lat - 0.007,
       lng: lng - 0.009,
       riskLevel: risk === 'EXTREME' || risk === 'VERY_HIGH' ? 'HIGH' : 'MODERATE',
-      waterDepthMeters: 0.22,
+      waterDepthMeters: Number((0.22 * depthFactor).toFixed(2)),
       locationName: `${name} Station Road`,
       accessStatus: 'Slow Movement — Sump pumps engaged',
       status: 'MONITORING',
       advisory: 'Underpass pedestrian walkway experiencing 15cm surface wash. Avoid lower subways.',
       distanceToInundationM: 180,
-      predictedDepthM: 0.25,
+      predictedDepthM: Number((0.25 * depthFactor).toFixed(2)),
       capacity: 'Daily Footfall 35,000+',
       address: `Station Road, Central ${name}`,
     },
@@ -175,13 +178,13 @@ export function generateInfrastructureAssetsForLocation(
       lat: lat - 0.014,
       lng: lng + 0.016,
       riskLevel: risk === 'EXTREME' ? 'EXTREME' : risk === 'VERY_HIGH' || risk === 'HIGH' ? 'HIGH' : 'MODERATE',
-      waterDepthMeters: 0.35,
+      waterDepthMeters: Number((0.35 * depthFactor).toFixed(2)),
       locationName: `${name} East Grid Yard`,
       accessStatus: 'De-energization protocol on standby for low switchyards',
       status: 'POTENTIALLY_AFFECTED',
       advisory: 'Flood barrier coffer dams deployed around transformer bank 3.',
       distanceToInundationM: 90,
-      predictedDepthM: 0.4,
+      predictedDepthM: Number((0.4 * depthFactor).toFixed(2)),
       capacity: '220/66/11 kV Grid Feed',
       address: `Industrial Ring Road, ${name}`,
     },
@@ -192,7 +195,7 @@ export function generateInfrastructureAssetsForLocation(
       lat: lat - 0.011,
       lng: lng + 0.009,
       riskLevel: risk === 'EXTREME' ? 'VERY_HIGH' : 'HIGH',
-      waterDepthMeters: 0.45,
+      waterDepthMeters: Number((0.45 * depthFactor).toFixed(2)),
       locationName: `${name} Sump Basin`,
       accessStatus: 'Operating 6/6 Heavy Submersible Pumps',
       status: 'OPERATIONAL',

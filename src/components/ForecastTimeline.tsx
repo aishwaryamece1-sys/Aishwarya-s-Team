@@ -12,15 +12,7 @@ import {
 } from 'lucide-react';
 import { useRainShield } from '../context/RainShieldContext';
 import { TimeStep } from '../types';
-
-const TIME_STEPS: { step: TimeStep; label: string; offsetLabel: string }[] = [
-  { step: 'NOW', label: '14:30', offsetLabel: 'NOW (Base)' },
-  { step: '+30', label: '15:00', offsetLabel: '+30 MIN' },
-  { step: '+60', label: '15:30', offsetLabel: '+60 MIN' },
-  { step: '+90', label: '16:00', offsetLabel: '+90 MIN' },
-  { step: '+120', label: '16:30', offsetLabel: '+120 MIN' },
-  { step: '+180', label: '17:30', offsetLabel: '+180 MIN' },
-];
+import { useLiveClock } from '../utils/timeUtils';
 
 export const ForecastTimeline: React.FC = () => {
   const {
@@ -35,17 +27,20 @@ export const ForecastTimeline: React.FC = () => {
     dataMode,
   } = useRainShield();
 
-  const currentIndex = TIME_STEPS.findIndex(t => t.step === currentTimeStep);
+  const { now, timeFormatted, stepApproximates } = useLiveClock(1000);
+
+  const currentIndex = stepApproximates.findIndex(t => t.step === currentTimeStep);
+  const activeStep = stepApproximates[currentIndex] || stepApproximates[0];
 
   const handlePrev = () => {
     if (currentIndex > 0) {
-      setCurrentTimeStep(TIME_STEPS[currentIndex - 1].step);
+      setCurrentTimeStep(stepApproximates[currentIndex - 1].step);
     }
   };
 
   const handleNext = () => {
-    if (currentIndex < TIME_STEPS.length - 1) {
-      setCurrentTimeStep(TIME_STEPS[currentIndex + 1].step);
+    if (currentIndex < stepApproximates.length - 1) {
+      setCurrentTimeStep(stepApproximates[currentIndex + 1].step);
     }
   };
 
@@ -93,7 +88,7 @@ export const ForecastTimeline: React.FC = () => {
             </button>
             <button
               onClick={handleNext}
-              disabled={currentIndex === TIME_STEPS.length - 1}
+              disabled={currentIndex === stepApproximates.length - 1}
               className="p-1.5 rounded hover:bg-slate-200 text-slate-600 hover:text-slate-900 disabled:opacity-30 transition-colors"
               title="Next Step"
             >
@@ -113,10 +108,13 @@ export const ForecastTimeline: React.FC = () => {
           </div>
 
           <div className="hidden sm:flex items-center gap-1.5 text-xs text-slate-500 border-l border-slate-200 pl-3">
-            <Clock className="w-3.5 h-3.5 text-slate-400" />
-            <span className="font-semibold text-slate-800">{currentRainfall.timestamp}</span>
-            <span className="text-[10px] bg-slate-100 text-slate-700 px-2 py-0.5 rounded border border-slate-200 font-mono font-bold">
-              Horizon: {currentTimeStep}
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+            </span>
+            <span className="font-bold text-slate-900 font-mono">{timeFormatted}</span>
+            <span className="text-[10px] bg-emerald-50 text-emerald-800 px-2 py-0.5 rounded border border-emerald-200 font-mono font-bold">
+              Horizon: {activeStep?.fullDisplay || currentTimeStep}
             </span>
           </div>
         </div>
@@ -147,13 +145,13 @@ export const ForecastTimeline: React.FC = () => {
         <div className="absolute top-6 left-0 w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
           <div
             className="h-full bg-gradient-to-r from-emerald-500 via-teal-500 to-rose-500 transition-all duration-300"
-            style={{ width: `${(currentIndex / (TIME_STEPS.length - 1)) * 100}%` }}
+            style={{ width: `${(currentIndex / (stepApproximates.length - 1)) * 100}%` }}
           />
         </div>
 
         {/* Interactive Step Nodes */}
         <div className="relative flex items-center justify-between">
-          {TIME_STEPS.map((t, idx) => {
+          {stepApproximates.map((t, idx) => {
             const isActive = t.step === currentTimeStep;
             const isPassed = idx <= currentIndex;
             return (
@@ -172,19 +170,24 @@ export const ForecastTimeline: React.FC = () => {
                   }`}
                 >
                   <span className="text-[10px] font-mono font-bold">
-                    {idx === 0 ? '0' : `+${idx * 30}`}
+                    {idx === 0 ? '0' : `+${t.minutesOffset}`}
                   </span>
                 </div>
 
                 <div className="mt-2 text-center">
                   <div
-                    className={`text-xs font-semibold transition-colors ${
-                      isActive ? 'text-emerald-700 font-bold' : 'text-slate-500 group-hover:text-slate-800'
+                    className={`text-xs font-semibold transition-colors whitespace-nowrap ${
+                      isActive ? 'text-emerald-700 font-bold' : 'text-slate-600 group-hover:text-slate-900'
                     }`}
                   >
                     {t.offsetLabel}
                   </div>
-                  <div className="text-[10px] text-slate-400 font-mono">{t.label} IST</div>
+                  <div className="text-[10px] text-slate-500 font-mono font-medium whitespace-nowrap">
+                    ~{t.timeStr}
+                  </div>
+                  <div className="text-[9px] text-slate-400 font-sans">
+                    {t.approxRelativeLabel}
+                  </div>
                 </div>
               </button>
             );
